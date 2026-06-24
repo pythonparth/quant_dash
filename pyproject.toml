@@ -1,0 +1,19 @@
+[project]
+name = "quant-dash"
+version = "0.1.0"
+description = "COO Operational Dashboard for a quant firm — trade reconciliation, risk, and team health."
+readme = "readme.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "pyarrow>=14.0",
+    "matplotlib>=3.7",
+    "seaborn>=0.12",
+    "streamlit>=1.30",
+]
+
+[dependency-groups]
+# Dev-only tooling; installed with `uv sync` but not part of the
+# distributable dependency set. Add e.g. "ruff", "pytest" here later.
+dev = []

@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+
+# uv / virtual env
+.venv/
+
+# Streamlit
+.streamlit/secrets.toml
+
+
+readme.md
