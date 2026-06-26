@@ -57,9 +57,7 @@ home page and the **Reconciliation Board** and **P&L by Team** pages.
 
 ---
 
-## 💡 The story (for the interviewer)
-
-The job is a **COO for quant firms** — owning market data, execution, P&L,
+Owning market data, execution, P&L,
 reconciliation, and infra automation. So instead of a generic "risk script," this is
 built as the COO's **daily cockpit**: one screen that answers *"what's on fire across
 my desks right now?"*
@@ -83,7 +81,7 @@ of truth, and every panel has both a Streamlit view and a pure-Python CLI engine
 ## 🧩 What each panel does
 
 ### 1. Reconciliation Board — *internal book vs clearing broker*
-The COO's #1 fear is an unreconciled break sitting unresolved for days. The engine
+#1 fear is an unreconciled break sitting unresolved for days. The engine
 matches our trades against the broker's report on `TradeID` and explains every row
 that doesn't agree:
 
