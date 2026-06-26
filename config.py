@@ -5,6 +5,7 @@ DATA_DIR = "data"
 PORTFOLIO_PATH = "data/portfolio.parquet"          # risk panel (returns/vol/corr)
 INTERNAL_TRADES_PATH = "data/internal_trades.parquet"  # our books
 BROKER_TRADES_PATH = "data/broker_trades.parquet"      # clearing broker's report
+MARKS_PATH = "data/marks.parquet"                  # daily EOD market price per symbol
 
 # --- Teams & market segments ----------------------------------------------- #
 

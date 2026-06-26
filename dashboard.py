@@ -5,8 +5,25 @@ import seaborn as sns
 import streamlit as st
 
 import config
+import pnl
 import reconciliation as recon
 import risk_monitor as rm
+
+GREEN, RED, GREY = "#1a7f37", "#a40010", "#888888"
+
+
+def _money(x: float) -> str:
+    return f"{'+' if x >= 0 else '-'}${abs(x):,.0f}"
+
+
+def _pnl_block(label: str, value: float, sub: str = "") -> str:
+    color = GREEN if value >= 0 else RED
+    sub_html = f"<div style='font-size:0.8rem;color:{GREY}'>{sub}</div>" if sub else ""
+    return (
+        f"<div style='font-size:0.85rem;color:{GREY}'>{label}</div>"
+        f"<div style='font-size:1.7rem;font-weight:700;color:{color}'>{_money(value)}</div>"
+        f"{sub_html}"
+    )
 
 st.set_page_config(page_title="Operational Risk Dashboard", layout="wide")
 
@@ -24,6 +41,27 @@ try:
         )
 except FileNotFoundError:
     pass
+
+# --- Firm P&L strip (the COO's most-watched number) ------------------------ #
+try:
+    _intr, _marks = pnl.load_inputs()
+    _daily, _pos = pnl.daily_pnl(_intr, _marks)
+    _firm = pnl.firm_totals(pnl.summary_by_team(_daily, _pos))
+    st.subheader("Firm P&L")
+    p1, p2, p3 = st.columns(3)
+    p1.markdown(_pnl_block("Today", _firm["Day Total"],
+                           f"R {_money(_firm['Day Realized'])} · U {_money(_firm['Day Unrealized'])}"),
+                unsafe_allow_html=True)
+    p2.markdown(_pnl_block("Month-to-date", _firm["MTD Total"],
+                           f"R {_money(_firm['MTD Realized'])} · U {_money(_firm['MTD Unrealized'])}"),
+                unsafe_allow_html=True)
+    p3.markdown(_pnl_block("Open unrealized", _firm["Open Unrealized"],
+                           "current mark-to-market"), unsafe_allow_html=True)
+    st.caption("Per-desk breakdown on the **P&L by Team** page →")
+    st.divider()
+except FileNotFoundError:
+    pass
+
 st.caption(
     f"Settings (config.py): correlation ≥ {config.CORR_THRESHOLD} · "
     f"vol window {config.VOL_WINDOW}d · vol ≥ {config.VOL_THRESHOLD} · "

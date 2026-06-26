@@ -67,7 +67,8 @@ st.caption("Sorted worst-first by critical breaks. This is the COO's roll-call."
 
 
 def _highlight_critical(row: pd.Series):
-    color = "background-color: #fde2e1" if row["Critical (3+ days)"] > 0 else ""
+    # Dark text on the tint so numbers stay readable in light & dark themes.
+    color = "background-color:#f6cccc; color:#8a0010" if row["Critical (3+ days)"] > 0 else ""
     return [color] * len(row)
 
 
@@ -76,7 +77,7 @@ styled = (
     .apply(_highlight_critical, axis=1)
     .format({"Break Notional": "${:,.0f}", "Break %": "{:.1f}%"})
 )
-st.dataframe(styled, use_container_width=True, hide_index=True)
+st.dataframe(styled, width="stretch", hide_index=True)
 
 # --- Two charts: breaks by team, breaks by aging bucket -------------------- #
 col_a, col_b = st.columns(2)
@@ -102,7 +103,7 @@ st.caption(
     "Missing at broker = we booked it, broker never confirmed · "
     "Missing internally = broker alleges a trade we have no record of."
 )
-st.dataframe(by_type, use_container_width=True, hide_index=True)
+st.dataframe(by_type, width="stretch", hide_index=True)
 
 st.divider()
 
@@ -124,10 +125,11 @@ if type_filter:
 
 
 def _color_severity(val: str) -> str:
+    # Tint + forced dark text so the label is readable in light & dark themes.
     return {
-        "Critical": "background-color: #f8b9b6",
-        "Warning": "background-color: #fde8c4",
-        "New": "background-color: #d8f0d8",
+        "Critical": "background-color:#f6cccc; color:#8a0010; font-weight:600",
+        "Warning": "background-color:#fce8c8; color:#7a4a00; font-weight:600",
+        "New": "background-color:#cdeed6; color:#0f5a2a; font-weight:600",
     }.get(val, "")
 
 
@@ -139,6 +141,6 @@ st.dataframe(
     blotter.style
     .map(_color_severity, subset=["Severity"])
     .format({"Notional": "${:,.0f}"}),
-    use_container_width=True, hide_index=True, height=420,
+    width="stretch", hide_index=True, height=420,
 )
 st.caption(f"Showing {len(view)} of {total_breaks} breaks.")

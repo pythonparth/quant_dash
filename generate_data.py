@@ -33,15 +33,66 @@ PRICE_RANGE = {
     "Govt Bonds":     (95.0, 105.0),
 }
 
+# Daily mark-path drift & vol per segment. The drift signs give the demo a
+# P&L narrative: some desks clearly green, some clearly red. (Futures is the
+# loser that's *also* messy on reconciliation — a coherent "problem desk".)
+MARK_DRIFT = {
+    "US Equities":    0.0035,   # up
+    "Index Futures":  -0.0045,  # down
+    "Equity Options": 0.0060,   # up (levered)
+    "FX Spot/Fwd":    -0.0008,  # ~flat, slightly down
+    "Govt Bonds":     0.0009,   # up modestly
+}
+MARK_VOL = {
+    "US Equities":    0.012,
+    "Index Futures":  0.011,
+    "Equity Options": 0.030,
+    "FX Spot/Fwd":    0.004,
+    "Govt Bonds":     0.0015,
+}
 
-def _trade_dates(rng: np.random.Generator) -> pd.DatetimeIndex:
+
+def _round_price(p: float) -> float:
+    """Sane decimals: finer for low-priced instruments (FX, options)."""
+    return round(float(p), 4 if p < 5 else 2)
+
+
+def _trade_dates() -> pd.DatetimeIndex:
     return pd.bdate_range(end=AS_OF, periods=TRADING_WINDOW)
 
 
-def generate_trades() -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Build the internal 'truth' then derive a broker view with breaks."""
+def generate_marks(dates: pd.DatetimeIndex) -> pd.DataFrame:
+    """Daily end-of-day market price per symbol (a gentle random walk).
+
+    These are the marks used to value positions for P&L: realized P&L is the
+    fill-vs-cost on closed lots, unrealized is the open position marked at the
+    latest price here.
+    """
+    rng = np.random.default_rng(SEED + 1)
+    rows = []
+    for seg, syms in SYMBOLS.items():
+        lo, hi = PRICE_RANGE[seg]
+        drift, vol = MARK_DRIFT[seg], MARK_VOL[seg]
+        for s in syms:
+            price = float(rng.uniform(lo, hi))
+            for i, d in enumerate(dates):
+                if i > 0:
+                    price = max(price * (1 + drift + vol * float(rng.normal())), 0.01)
+                rows.append({
+                    "Date": d.normalize(), "Symbol": s, "Segment": seg,
+                    "Price": _round_price(price),
+                })
+    return pd.DataFrame(rows)
+
+
+def generate_trades(dates: pd.DatetimeIndex,
+                    marks_lookup: dict[tuple, float]) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Build the internal 'truth' then derive a broker view with breaks.
+
+    Fills are drawn near that day's mark for the symbol (small spread) so the
+    resulting P&L is realistic rather than noise.
+    """
     rng = np.random.default_rng(SEED)
-    dates = _trade_dates(rng)
 
     rows = []
     tid = 0
@@ -49,19 +100,20 @@ def generate_trades() -> tuple[pd.DataFrame, pd.DataFrame]:
         seg = meta["segment"]
         broker = meta["broker"]
         symbols = SYMBOLS[seg]
-        lo, hi = PRICE_RANGE[seg]
         for d in dates:
             n = rng.poisson(TRADES_PER_DESK_PER_DAY)
             for _ in range(n):
                 tid += 1
-                price = round(float(rng.uniform(lo, hi)), 2)
+                sym = str(rng.choice(symbols))
+                mark = marks_lookup[(d.normalize(), sym)]
+                price = _round_price(mark * (1 + float(rng.normal(0, 0.0008))))
                 rows.append({
                     "TradeID": f"T{tid:06d}",
                     "TradeDate": d.normalize(),
                     "Team": team,
                     "Segment": seg,
                     "Broker": broker,
-                    "Symbol": rng.choice(symbols),
+                    "Symbol": sym,
                     "Side": rng.choice(["Buy", "Sell"]),
                     "Quantity": int(rng.integers(1, 50) * 100),
                     "Price": price,
@@ -182,15 +234,21 @@ def generate_portfolio() -> pd.DataFrame:
 def main() -> None:
     os.makedirs(config.DATA_DIR, exist_ok=True)
 
-    internal, broker = generate_trades()
+    dates = _trade_dates()
+    marks = generate_marks(dates)
+    marks_lookup = {(r.Date, r.Symbol): r.Price for r in marks.itertuples()}
+
+    internal, broker = generate_trades(dates, marks_lookup)
     internal.to_parquet(config.INTERNAL_TRADES_PATH, index=False)
     broker.to_parquet(config.BROKER_TRADES_PATH, index=False)
+    marks.to_parquet(config.MARKS_PATH, index=False)
 
     portfolio = generate_portfolio()
     portfolio.to_parquet(config.PORTFOLIO_PATH, index=False)
 
     print(f"internal_trades : {len(internal):>5} rows -> {config.INTERNAL_TRADES_PATH}")
     print(f"broker_trades   : {len(broker):>5} rows -> {config.BROKER_TRADES_PATH}")
+    print(f"marks           : {len(marks):>5} rows -> {config.MARKS_PATH}")
     print(f"portfolio       : {len(portfolio):>5} rows -> {config.PORTFOLIO_PATH}")
 
 
